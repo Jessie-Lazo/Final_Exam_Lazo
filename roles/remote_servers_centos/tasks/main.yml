@@ -1,0 +1,139 @@
+  - name: prothemetus download directory (CentOS)
+    file:
+      path: ~/prometheus
+      state: directory
+
+  - name: Downloading and extracting Prometheus (CentOS)
+    unarchive:
+      src: https://github.com/prometheus/prometheus/releases/download/v2.8.1/prometheus-2.8.1.linux-amd64.tar.gz
+      dest: ~/prometheus
+      remote_src: yes
+      mode: 0777
+      owner: root
+      group: root
+
+  - name: Stop the Prometheus service (CentOS)
+    service:
+      name: prometheus
+      state: stopped
+    async: 300
+    poll: 0
+    ignore_errors: yes
+
+  - name: Adding the Prometheus executables to a PATH
+    tags: executables
+    shell: |
+      cd ~/prometheus/prometheus*
+      cp -r . /usr/local/bin/prometheus
+
+  - name: Copying the Prometheus Configuration (CentOS)
+    copy:
+      src: prometheus.service
+      dest: /etc/systemd/system/prometheus.service
+      owner: root
+      group: root
+      mode: 777
+
+  - name: Begin/Restart the Prometheus service (CentOS)
+    service:
+      name: prometheus
+      state: restarted
+      enabled: yes
+
+  - name: Installing nagios dependecies and libraries (CentOS)
+    tags: dependecies, libraries
+    yum:
+      name:
+        - gcc
+        - glibc
+        - glibc-common
+        - perl
+        - httpd
+        - php
+        - wget
+        - gd
+        - gd-devel
+        - openssl-devel
+        - gcc
+        - glibc
+        - glibc-common
+        - make
+        - gettext
+        - automake
+        - autoconf
+        - wget
+        - openssl-devel
+        - net-snmp
+        - net-snmp-utils
+        - python3-pip
+      state: present
+    when: ansible_distribution == "CentOS"
+
+  - name: Install passlib python package (CentOS)
+    pip:
+      executable: /usr/bin/pip3
+      name: passlib
+    when: ansible_distribution == "CentOS"
+
+  - name: Creating a directory for nagios (CentOS)
+    file:
+      path: ~/nagios
+      state: directory
+    when: ansible_distribution == "CentOS"
+
+  - name: Downloading and extracting Nagios (CentOS)
+    unarchive:
+      src: https://github.com/NagiosEnterprises/nagioscore/archive/nagios-4.4.6.tar.gz
+      dest: ~/nagios
+      remote_src: yes
+      mode: 0777
+      owner: root
+      group: root
+    when: ansible_distribution == "CentOS"
+
+  - name: Downloading and extracting Nagios plugins (CentOS)
+    unarchive:
+      src: https://github.com/nagios-plugins/nagios-plugins/archive/release-2.3.3.tar.gz
+      dest: ~/nagios
+      remote_src: yes
+      mode: 0777
+      owner: root
+      group: root
+    when: ansible_distribution == "CentOS"
+
+  - name: Compiling, installing, and adding users and groups in nagios (CentOS)
+    shell: |
+      cd ~/nagios/nagioscore-**
+      ./configure
+      make all
+      make install-groups-users
+      usermod -a -G nagios apache
+      make install
+      make install-daemoninit
+      make install-commandmode
+      make install-config
+      make install-webconf
+    when: ansible_distribution == "CentOS"
+
+  - name: Compiling and installing plugins (CentOS)
+    shell: |
+      cd ~/nagios/nagios-plugins*
+      ./tools/setup
+      ./configure
+      make
+      make install
+    when: ansible_distribution == "CentOS"
+
+  - name: starting/enabling nagios (CentOS)
+    service:
+      name: nagios
+      state: restarted
+      enabled: true
+    when: ansible_distribution == "CentOS"
+
+  - name: starting/enabling apache2 (CentOS)
+    service:
+      name: httpd
+      state: restarted
+      enabled: true
+    when: ansible_distribution == "CentOS"
